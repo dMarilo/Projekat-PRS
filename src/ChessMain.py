@@ -55,8 +55,8 @@ def main():
     playerClicks = [] #Prati klikove
     
     
-    playerOne = True #If a human is playing white, this will be true, if ai, then false
-    playerTwo = False #Same as above for black
+    playerOne = True 
+    playerTwo = False 
     
     while running:
         humanTurn = (gs.whiteToMove and playerOne) or (not gs.whiteToMove and playerTwo)
@@ -117,7 +117,6 @@ def main():
                     gs.undoMove()
                     moveMade = True
 
-        from monte_carlo_ai import mcts_best_move
 
 
 
