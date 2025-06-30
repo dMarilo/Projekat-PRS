@@ -122,7 +122,7 @@ def main():
 
         #AI move finder
         if not humanTurn:
-            AIMove = chessAI.findBestMoveNegaMax(gs, validMoves, 6)
+            AIMove = chessAI.findBestMoveNegaMax(gs, validMoves, 5)
             #AIMove = mcts_best_move(gs, iterations=100)
 
             #AIMove = chessAI.findBestMove(gs, validMoves)
