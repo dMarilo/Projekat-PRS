@@ -528,28 +528,33 @@ class GameState():
     # Rokada na kraljevoj strani (short castling)
     def getKingsideCastleMoves(self, r, c, moves, allyColor):
         # Provjerava da li su polja između kralja i topa prazna
-        if self.board[r][c+1] == "--" and self.board[r][c+2] == "--":
-            # Provjera da li ta polja nisu pod napadom
-            if not self.squareUnderAttack(r, c+1) and not self.squareUnderAttack(r, c+2):
-                moves.append(Move((r, c), (r, c+2), self.board, isCastleMove=True))
+        if self.board[r][c + 1] == "--" and self.board[r][c + 2] == "--":
+            # Provjera da li ta polja nisu pod napadom, ignoring castling during check
+            prev_castle_rights = self.currentCastlingRights
+            try:
+                if not self._isSquareUnderAttackNoCastle(r, c + 1) and not self._isSquareUnderAttackNoCastle(r, c + 2):
+                    moves.append(Move((r, c), (r, c + 2), self.board, isCastleMove=True))
+            finally:
+                self.currentCastlingRights = prev_castle_rights  # Restore state if needed
 
-    # Rokada na kraljičinoj strani (long castling)
     def getQueensideCastleMoves(self, r, c, moves, allyColor):
-        # Provjerava da li su polja između kralja i topa prazna
-        if self.board[r][c-1] == "--" and self.board[r][c-2] == "--" and self.board[r][c-3] == "--":
-            # Provjera da li su ta polja bez prijetnji
-            if not self.squareUnderAttack(r, c-1) and not self.squareUnderAttack(r, c-2):
-                moves.append(Move((r, c), (r, c-2), self.board, isCastleMove=True))
+        if self.board[r][c - 1] == "--" and self.board[r][c - 2] == "--" and self.board[r][c - 3] == "--":
+            if not self._isSquareUnderAttackNoCastle(r, c - 1) and not self._isSquareUnderAttackNoCastle(r, c - 2):
+                moves.append(Move((r, c), (r, c - 2), self.board, isCastleMove=True))
 
-    # Provjerava da li je dato polje napadnuto od strane protivnika
     def squareUnderAttack(self, r, c):
-        self.whiteToMove = not self.whiteToMove  # Pretvaramo se da je protivnik na potezu
+        self.whiteToMove = not self.whiteToMove
         oppMoves = self.getAllPossibleMoves()
-        self.whiteToMove = not self.whiteToMove  # Vraćamo stvarno stanje
-        for move in oppMoves:
-            if move.endRow == r and move.endCol == c:
-                return True  # Polje je pod napadom
-        return False
+        self.whiteToMove = not self.whiteToMove
+        return any(move.endRow == r and move.endCol == c for move in oppMoves)
+
+        # 🔒 Internal method to prevent recursive castling lookups
+    def _isSquareUnderAttackNoCastle(self, r, c):
+        self.whiteToMove = not self.whiteToMove
+        oppMoves = self.getAllPossibleMoves(includeCastle=False)  # Temporarily remove castling logic here if needed
+        self.whiteToMove = not self.whiteToMove
+        filteredMoves = [m for m in oppMoves if not getattr(m, "isCastleMove", False)]
+        return any(move.endRow == r and move.endCol == c for move in filteredMoves)
 
 class CastleRights:
     def __init__(self, wks, wqs, bks, bqs):
@@ -581,10 +586,14 @@ class Move():
         self.startCol = startSq[1]
         self.endRow = endSq[0]
         self.endCol = endSq[1]
+        
 
         # Figura koja se pomjera i figura koja je eventualno pojedena
         self.pieceMoved = board[self.startRow][self.startCol]
         self.pieceCaptured = board[self.endRow][self.endCol]
+        
+        # Provjera da li je figura pojedena
+        self.isCapture = self.pieceCaptured != "--"
 
         # En passant logika
         self.isEnpassantMove = isEnpassantMove
@@ -610,9 +619,7 @@ class Move():
 
     # Poređenje poteza bazirano na ID-u
     def __eq__(self, other):
-        if isinstance(other, Move):
-            return self.moveID == other.moveID
-        return False
+        return isinstance(other, Move) and self.getChessNotation() == other.getChessNotation()
 
     # Pretvaranje poteza u šahovsku notaciju (npr. e2e4)
     def getChessNotation(self):
